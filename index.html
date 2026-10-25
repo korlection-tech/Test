@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>Korlection｜韓國11月份代購</title>
+    <title>Korlection｜韓國9月份代購</title>
 
     <script src="https://cdnjs.cloudflare.com/ajax/libs/PapaParse/5.4.1/papaparse.min.js"></script>
     <script src="https://cdnjs.cloudflare.com/ajax/libs/html2canvas/1.4.1/html2canvas.min.js"></script>
@@ -780,7 +780,7 @@
                     class="subtitle-flag"
                     onerror="this.style.display='none';"
                 >
-                <span>韓國11月份代購</span>
+                <span>韓國9月份代購</span>
             </div>
 
             <div class="partner-logos">
@@ -801,7 +801,7 @@
         </div>
 
         <div id="statusMessage" class="status-message status-loading">
-            正在載入 olive_pricelist.csv 商品資料……
+            正在載入 pricelist.csv 商品資料……
         </div>
 
         <div class="store-tabs-container">
@@ -963,13 +963,13 @@
             const searchButton = document.getElementById("searchBtn");
 
             statusMessage.className = "status-message status-loading";
-            statusMessage.innerText = "正在載入 olive_pricelist.csv 商品資料……";
+            statusMessage.innerText = "正在載入 pricelist.csv 商品資料……";
             statusMessage.style.display = "block";
 
             searchButton.disabled = true;
             searchButton.innerText = "載入中……";
 
-            Papa.parse("olive_pricelist.csv?v=" + Date.now(), {
+            Papa.parse("pricelist.csv?v=" + Date.now(), {
                 download: true,
                 header: true,
                 skipEmptyLines: true,
@@ -1007,7 +1007,7 @@
 
                     statusMessage.className = "status-message status-error";
                     statusMessage.innerHTML = `
-                        <strong>無法讀取 olive_pricelist.csv。</strong><br><br>
+                        <strong>無法讀取 pricelist.csv。</strong><br><br>
                         請確認檔案已 upload 至 GitHub repository 根目錄，並已 commit / push。<br>
                         HTML 與 CSV 預設位於同一層資料夾。
                     `;
@@ -1033,11 +1033,11 @@
         }
 
         function getStoreValue(product) {
-            return normalizeLower(product["Store"] || product["store"]);
+            return normalizeLower(product["Store"] || product["store"] || "olive");
         }
 
         function getCategoryValue(product) {
-            return normalizeLower(product["Category"] || product["category"]);
+            return normalizeLower(product["Category"] || product["category"] || "");
         }
 
         function getBrandValue(product) {
@@ -1405,38 +1405,34 @@
             return `${date.getDate()}/${date.getMonth() + 1}`;
         }
 
-        // 向上取整至 0 尾或 5 尾 (e.g., Math.ceil(val / 5) * 5)
         function roundUpTo0Or5(val) {
             return Math.ceil(val / 5.0) * 5;
         }
 
-        // 核心公式計算與排序邏輯
+        // 核心公式計算（同時兼容不同名稱的欄位）
         function calculateProductPrices(item) {
             const origPrice = parseFloat(item["Original Price"] || item["OriginalPrice"] || item["original_price"] || 0);
             const saleDisc = parseFloat(item["Sale Discount"] || item["SaleDiscount"] || item["sale_discount"] || 0);
             const couponDisc = parseFloat(item["Coupon Discount"] || item["CouponDiscount"] || item["coupon_discount"] || 0);
 
             const shippingType = normalizeLower(item["Shipping Type"] || item["ShippingType"] || item["shipping_type"] || "standard");
-            const shippingFee = shippingType === "heavy" ? 35 : 18;
+            const shippingFee = (shippingType === "heavy" || shippingType === "large") ? 35 : 18;
 
-            // 公式 1：(Original price - Sale Discount)/155*1.2 + 運費
             const rawPrice1 = (origPrice - saleDisc) / 155 * 1.2 + shippingFee;
             const price1 = roundUpTo0Or5(rawPrice1);
 
-            // 公式 2：(Original price - Sale Discount - Coupon Discount)/155*1.2 + 運費 (註: 若第二個公式也需加運費可在此加; 如只需第一個加運費可自行調整)
             const rawPrice2 = (origPrice - saleDisc - couponDisc) / 155 * 1.2 + shippingFee;
             const price2 = roundUpTo0Or5(rawPrice2);
 
-            const saleDateStart = parseCsvDate(item["Sale Date Start"] || item["Sale Start Date"] || item["Price 1 Date"]);
-            const saleDateEnd = parseCsvDate(item["Sale Date End"] || item["Sale End Date"] || item["Price 1 End Date"]);
+            const saleDateStart = parseCsvDate(item["Promo Start"] || item["Sale Date Start"] || item["Price 1 Date"]);
+            const saleDateEnd = parseCsvDate(item["Promo end"] || item["Promo End"] || item["Sale Date End"] || item["Price 1 End Date"]);
 
-            const couponDateStart = parseCsvDate(item["Coupon Date Start"] || item["Coupon Start Date"] || item["Price 2 Date"]);
-            const couponDateEnd = parseCsvDate(item["Coupon Date End"] || item["Coupon End Date"] || item["Price 2 End Date"]);
+            const couponDateStart = parseCsvDate(item["Extra Start"] || item["Coupon Date Start"] || item["Price 2 Date"]);
+            const couponDateEnd = parseCsvDate(item["Extra End"] || item["Coupon Date End"] || item["Price 2 End Date"]);
 
             const dateText1 = saleDateStart && saleDateEnd ? `(${formatSaleDate(saleDateStart)} - ${formatSaleDate(saleDateEnd)})` : "";
             const dateText2 = couponDateStart && couponDateEnd ? `(${formatSaleDate(couponDateStart)} - ${formatSaleDate(couponDateEnd)})` : "";
 
-            // 永遠將較平的價錢放第一行
             let finalRow1Price = price1;
             let finalRow1Date = dateText1;
             let finalRow2Price = price2;
