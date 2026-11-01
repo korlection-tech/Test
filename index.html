@@ -1447,10 +1447,15 @@
             return isNaN(value) ? null : value;
         }
 
+        function roundUpToFive(value) {
+            if (value === null || isNaN(value)) return null;
+            return Math.ceil(value / 5) * 5;
+        }
+
         function formatCalculatedPrice(value) {
-            if (value === null || isNaN(value)) return "";
-            const rounded = Math.round(value * 100) / 100;
-            return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+            const rounded = roundUpToFive(value);
+            if (rounded === null) return "";
+            return String(rounded);
         }
 
         function getShippingTypeValue(item) {
@@ -1633,7 +1638,7 @@
             const value = parsePriceNumber(text);
             if (value === null) return normalizeText(text);
             const increased = value + 10;
-            return Number.isInteger(increased) ? String(increased) : increased.toFixed(2);
+            return String(increased);
         }
 
         function buildPosterCell(item, addTenDollars) {
@@ -1650,14 +1655,14 @@
             if (price1) {
                 priceHtml += `
                     <div class="ig-price-line highlight">
-                        $${escapeHtml(price1)} ${escapeHtml(validity.price1Text)}
+                        ${escapeHtml(validity.price1Text)} $${escapeHtml(price1)}
                     </div>
                 `;
             }
             if (price2) {
                 priceHtml += `
                     <div class="ig-price-line sub">
-                        $${escapeHtml(price2)} ${escapeHtml(validity.price2Text)}
+                        ${escapeHtml(validity.price2Text)} $${escapeHtml(price2)}
                     </div>
                 `;
             }
