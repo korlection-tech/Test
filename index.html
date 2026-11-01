@@ -653,20 +653,21 @@
             left: 20px;
             right: 20px;
             z-index: 10;
-            display: -webkit-box;
-            overflow: hidden;
-            padding: 11px 14px;
+            display: block;
+            overflow: visible;
+            padding: 10px 12px;
             color: #000 !important;
             background-color: #fff !important;
             border: 0 !important;
             border-radius: 0 !important;
             box-shadow: none !important;
             opacity: 1 !important;
-            font-size: 20px;
+            font-size: 17px;
             font-weight: 800;
-            line-height: 1.28;
-            -webkit-box-orient: vertical;
-            -webkit-line-clamp: 2;
+            line-height: 1.25;
+            text-align: center;
+            word-break: break-word;
+            white-space: normal;
         }
 
         .ig-tag-price-box {
@@ -1581,34 +1582,6 @@
             });
         }
 
-        function normalizeHeaderKey(text) {
-            return normalizeLower(String(text || "")).replace(/[^a-z0-9]/g, "");
-        }
-
-        function getPriceFieldValue(item, period) {
-            const entries = Object.entries(item);
-            const wanted = period === 1 ? "price1hkd" : "price2hkd";
-
-            for (const [key, value] of entries) {
-                if (normalizeHeaderKey(key) === wanted) {
-                    const text = normalizeText(value);
-                    if (text) return text;
-                }
-            }
-
-            if (period === 1) {
-                for (const [key, value] of entries) {
-                    const header = normalizeHeaderKey(key);
-                    if (header === "pricehkd" || header === "price") {
-                        const text = normalizeText(value);
-                        if (text) return text;
-                    }
-                }
-            }
-
-            return "";
-        }
-
         function parsePriceNumber(text) {
             const cleaned = normalizeText(text).replace(/[^0-9.]/g, "");
             const value = parseFloat(cleaned);
@@ -1626,9 +1599,11 @@
             const brand = getBrandValue(item);
             const name = getProductNameValue(item);
             const image = getImageValue(item);
-            const rawPrice1 = getPriceFieldValue(item, 1);
-            const rawPrice2 = getPriceFieldValue(item, 2);
+
+            const rawPrice1 = normalizeText(item["Price 1 (HKD)"]) || normalizeText(item["Price (HKD)"]);
+            const rawPrice2 = normalizeText(item["Price 2 (HKD)"]);
             const validity = buildValidityText(item);
+
             const price1 = addTenDollars ? formatPricePlusTen(rawPrice1) : rawPrice1;
             const price2 = addTenDollars ? formatPricePlusTen(rawPrice2) : rawPrice2;
 
@@ -1654,8 +1629,8 @@
                     crossorigin="anonymous"
                     referrerpolicy="no-referrer"
                     style="
-                        max-width:98% !important;
-                        max-height:94% !important;
+                        max-width:96% !important;
+                        max-height:72% !important;
                         width:auto !important;
                         height:auto !important;
                         object-fit:contain !important;
@@ -1678,10 +1653,10 @@
                 >
                     <div style="
                         font-size:13px !important;
-                        font-weight:800 !important;
+                        font-weight:900 !important;
                         color:#1D63FF !important;
                         text-transform:uppercase !important;
-                        margin-bottom:3px !important;
+                        margin-bottom:4px !important;
                     ">${escapeHtml(brand)}</div>
                     ${escapeHtml(name)}
                 </div>
@@ -1755,15 +1730,6 @@
                                 element.style.border = "0";
                                 element.style.borderRadius = "0";
                                 element.style.boxShadow = "none";
-                                element.style.opacity = "1";
-                            });
-
-                        clonedDocument
-                            .querySelectorAll("#renderCanvasHidden, .ig-poster-1350, .ig-grid-item")
-                            .forEach(function(element) {
-                                element.style.background = "none";
-                                element.style.backgroundColor = "#FFFFFF";
-                                element.style.border = "0";
                                 element.style.opacity = "1";
                             });
                     }
