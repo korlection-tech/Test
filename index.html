@@ -1441,6 +1441,52 @@
                 .replace(/'/g, "&#039;");
         }
 
+        function parsePriceNumber(text) {
+            const cleaned = normalizeText(text).replace(/[^0-9.]/g, "");
+            const value = parseFloat(cleaned);
+            return isNaN(value) ? null : value;
+        }
+
+        function formatCalculatedPrice(value) {
+            if (value === null || isNaN(value)) return "";
+            const rounded = Math.round(value * 100) / 100;
+            return Number.isInteger(rounded) ? String(rounded) : rounded.toFixed(2);
+        }
+
+        function getShippingTypeValue(item) {
+            return normalizeLower(
+                item["Shipping Type"] ||
+                item["Shipping type"] ||
+                item["shipping type"] ||
+                item["Shipping"] ||
+                item["shipping"] ||
+                ""
+            );
+        }
+
+        function computePrices(item) {
+            const original = parsePriceNumber(item["Original Price"] || item["Original price"] || item["original price"]);
+            const sale = parsePriceNumber(item["Sale Discount"] || item["Sale discount"] || item["sale discount"]) || 0;
+            const coupon = parsePriceNumber(item["Coupon Discount"] || item["Coupon discount"] || item["coupon discount"]) || 0;
+            const shippingType = getShippingTypeValue(item);
+            const shipping = shippingType.includes("heavy") ? 35 : 18;
+
+            if (original === null) {
+                return {
+                    price1: normalizeText(item["Price 1 (HKD)"]) || normalizeText(item["Price (HKD)"]),
+                    price2: normalizeText(item["Price 2 (HKD)"])
+                };
+            }
+
+            const period1 = (original - sale - coupon) / 155 * 1.2 + shipping;
+            const period2 = (original - sale) / 155 * 1.2 + shipping;
+
+            return {
+                price1: formatCalculatedPrice(period1),
+                price2: formatCalculatedPrice(period2)
+            };
+        }
+
         function renderGrid(list) {
             const grid = document.getElementById("resultsGrid");
             grid.innerHTML = "";
@@ -1460,8 +1506,9 @@
                 const category = normalizeText(item["Category"] || item["category"]);
                 const character = getCharacterDisplay(item["Character"] || item["character"]);
 
-                const price1 = normalizeText(item["Price 1 (HKD)"]) || normalizeText(item["Price (HKD)"]) || "未定價";
-                const price2 = normalizeText(item["Price 2 (HKD)"]);
+                const computedPrices = computePrices(item);
+                const price1 = computedPrices.price1 || "未定價";
+                const price2 = computedPrices.price2;
                 const image = getImageValue(item);
                 const detailImage = getDetailImageValue(item);
                 const validity = buildValidityText(item);
@@ -1582,12 +1629,6 @@
             });
         }
 
-        function parsePriceNumber(text) {
-            const cleaned = normalizeText(text).replace(/[^0-9.]/g, "");
-            const value = parseFloat(cleaned);
-            return isNaN(value) ? null : value;
-        }
-
         function formatPricePlusTen(text) {
             const value = parsePriceNumber(text);
             if (value === null) return normalizeText(text);
@@ -1599,13 +1640,11 @@
             const brand = getBrandValue(item);
             const name = getProductNameValue(item);
             const image = getImageValue(item);
-
-            const rawPrice1 = normalizeText(item["Price 1 (HKD)"]) || normalizeText(item["Price (HKD)"]);
-            const rawPrice2 = normalizeText(item["Price 2 (HKD)"]);
+            const computed = computePrices(item);
             const validity = buildValidityText(item);
 
-            const price1 = addTenDollars ? formatPricePlusTen(rawPrice1) : rawPrice1;
-            const price2 = addTenDollars ? formatPricePlusTen(rawPrice2) : rawPrice2;
+            const price1 = addTenDollars ? formatPricePlusTen(computed.price1) : computed.price1;
+            const price2 = addTenDollars ? formatPricePlusTen(computed.price2) : computed.price2;
 
             let priceHtml = "";
             if (price1) {
