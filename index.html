@@ -586,6 +586,7 @@
             line-height: 1;
         }
 
+        /* 詳情無縫拼接長圖容器與圖片設定 */
         #modalImgBox {
             display: flex;
             flex-direction: column;
@@ -602,6 +603,8 @@
             padding: 0;
             border: none;
         }
+
+        /* ===== IG POSTER: 1080 x 1350 ===== */
 
         #renderCanvasHidden {
             position: absolute;
@@ -801,7 +804,7 @@
         </div>
 
         <div id="statusMessage" class="status-message status-loading">
-            正在載入 pricelist.csv 商品資料……
+            正在載入 olive_pricelist.csv 商品資料……
         </div>
 
         <div class="store-tabs-container">
@@ -866,10 +869,17 @@
 
                 <button
                     class="btn-ig-gen"
-                    id="igGenBtn"
-                    onclick="generateAllIGPosters()"
+                    id="featuredGenBtn"
+                    onclick="generateFeaturedPosters()"
                 >
-                    Generate IG
+                    Generate Featured
+                </button>
+                <button
+                    class="btn-ig-gen"
+                    id="igGenBtn"
+                    onclick="generateCoursellPosters()"
+                >
+                    Generate Coursell
                 </button>
             </div>
         </div>
@@ -897,6 +907,7 @@
 
             <h2 id="modalTitle" style="font-size:18px; margin:5px 0 15px; color:#182033;"></h2>
 
+            <!-- 詳情無縫圖片渲染區 -->
             <div id="modalImgBox"></div>
 
             <div
@@ -963,13 +974,13 @@
             const searchButton = document.getElementById("searchBtn");
 
             statusMessage.className = "status-message status-loading";
-            statusMessage.innerText = "正在載入 pricelist.csv 商品資料……";
+            statusMessage.innerText = "正在載入 olive_pricelist.csv 商品資料……";
             statusMessage.style.display = "block";
 
             searchButton.disabled = true;
             searchButton.innerText = "載入中……";
 
-            Papa.parse("pricelist.csv?v=" + Date.now(), {
+            Papa.parse("olive_pricelist.csv?v=" + Date.now(), {
                 download: true,
                 header: true,
                 skipEmptyLines: true,
@@ -1007,7 +1018,7 @@
 
                     statusMessage.className = "status-message status-error";
                     statusMessage.innerHTML = `
-                        <strong>無法讀取 pricelist.csv。</strong><br><br>
+                        <strong>無法讀取 olive_pricelist.csv。</strong><br><br>
                         請確認檔案已 upload 至 GitHub repository 根目錄，並已 commit / push。<br>
                         HTML 與 CSV 預設位於同一層資料夾。
                     `;
@@ -1033,11 +1044,11 @@
         }
 
         function getStoreValue(product) {
-            return normalizeLower(product["Store"] || product["store"] || "olive");
+            return normalizeLower(product["Store"] || product["store"]);
         }
 
         function getCategoryValue(product) {
-            return normalizeLower(product["Category"] || product["category"] || "");
+            return normalizeLower(product["Category"] || product["category"]);
         }
 
         function getBrandValue(product) {
@@ -1405,51 +1416,21 @@
             return `${date.getDate()}/${date.getMonth() + 1}`;
         }
 
-        function roundUpTo0Or5(val) {
-            return Math.ceil(val / 5.0) * 5;
+        function nextDay(date) {
+            const result = new Date(date);
+            result.setDate(result.getDate() + 1);
+            return result;
         }
 
-        // 核心公式計算（同時兼容不同名稱的欄位）
-        function calculateProductPrices(item) {
-            const origPrice = parseFloat(item["Original Price"] || item["OriginalPrice"] || item["original_price"] || 0);
-            const saleDisc = parseFloat(item["Sale Discount"] || item["SaleDiscount"] || item["sale_discount"] || 0);
-            const couponDisc = parseFloat(item["Coupon Discount"] || item["CouponDiscount"] || item["coupon_discount"] || 0);
-
-            const shippingType = normalizeLower(item["Shipping Type"] || item["ShippingType"] || item["shipping_type"] || "standard");
-            const shippingFee = (shippingType === "heavy" || shippingType === "large") ? 35 : 18;
-
-            const rawPrice1 = (origPrice - saleDisc) / 155 * 1.2 + shippingFee;
-            const price1 = roundUpTo0Or5(rawPrice1);
-
-            const rawPrice2 = (origPrice - saleDisc - couponDisc) / 155 * 1.2 + shippingFee;
-            const price2 = roundUpTo0Or5(rawPrice2);
-
-            const saleDateStart = parseCsvDate(item["Promo Start"] || item["Sale Date Start"] || item["Price 1 Date"]);
-            const saleDateEnd = parseCsvDate(item["Promo end"] || item["Promo End"] || item["Sale Date End"] || item["Price 1 End Date"]);
-
-            const couponDateStart = parseCsvDate(item["Extra Start"] || item["Coupon Date Start"] || item["Price 2 Date"]);
-            const couponDateEnd = parseCsvDate(item["Extra End"] || item["Coupon Date End"] || item["Price 2 End Date"]);
-
-            const dateText1 = saleDateStart && saleDateEnd ? `(${formatSaleDate(saleDateStart)} - ${formatSaleDate(saleDateEnd)})` : "";
-            const dateText2 = couponDateStart && couponDateEnd ? `(${formatSaleDate(couponDateStart)} - ${formatSaleDate(couponDateEnd)})` : "";
-
-            let finalRow1Price = price1;
-            let finalRow1Date = dateText1;
-            let finalRow2Price = price2;
-            let finalRow2Date = dateText2;
-
-            if (price2 > 0 && price2 < price1) {
-                finalRow1Price = price2;
-                finalRow1Date = dateText2;
-                finalRow2Price = price1;
-                finalRow2Date = dateText1;
-            }
+        function buildValidityText(item) {
+            const date1 = parseCsvDate(item["Price 1 Date"]);
+            const date2 = parseCsvDate(item["Price 2 Date"]);
 
             return {
-                row1Price: isNaN(finalRow1Price) ? "未定價" : finalRow1Price,
-                row1DateText: finalRow1Date,
-                row2Price: isNaN(finalRow2Price) ? "" : finalRow2Price,
-                row2DateText: finalRow2Date
+                price1Text: date1 ? `(~${formatSaleDate(date1)})` : "",
+                price2Text: date1 && date2
+                    ? `(${formatSaleDate(nextDay(date1))}~${formatSaleDate(date2)})`
+                    : (date2 ? `(~${formatSaleDate(date2)})` : "")
             };
         }
 
@@ -1481,9 +1462,11 @@
                 const category = normalizeText(item["Category"] || item["category"]);
                 const character = getCharacterDisplay(item["Character"] || item["character"]);
 
-                const calculated = calculateProductPrices(item);
+                const price1 = normalizeText(item["Price 1 (HKD)"]) || normalizeText(item["Price (HKD)"]) || "未定價";
+                const price2 = normalizeText(item["Price 2 (HKD)"]);
                 const image = getImageValue(item);
                 const detailImage = getDetailImageValue(item);
+                const validity = buildValidityText(item);
 
                 const card = document.createElement("div");
                 card.className = "card";
@@ -1493,26 +1476,26 @@
                         brand,
                         name,
                         detailImage,
-                        calculated.row1Price,
-                        calculated.row2Price,
-                        calculated.row1DateText,
-                        calculated.row2DateText,
+                        price1,
+                        price2,
+                        item["Price 1 Date"],
+                        item["Price 2 Date"],
                         character
                     );
                 };
 
                 let priceHtml = `
                     <div class="price-row p1">
-                        <span class="date-label">${escapeHtml(calculated.row1DateText || "優惠價")}</span>
-                        <span class="price-val">HKD $${escapeHtml(calculated.row1Price)}</span>
+                        <span class="date-label">${escapeHtml(validity.price1Text || "優惠價")}</span>
+                        <span class="price-val">HKD $${escapeHtml(price1)}</span>
                     </div>
                 `;
 
-                if (calculated.row2Price) {
+                if (price2) {
                     priceHtml += `
                         <div class="price-row p2">
-                            <span class="date-label">${escapeHtml(calculated.row2DateText || "第二階段")}</span>
-                            <span class="price-val">HKD $${escapeHtml(calculated.row2Price)}</span>
+                            <span class="date-label">${escapeHtml(validity.price2Text || "第二階段")}</span>
+                            <span class="price-val">HKD $${escapeHtml(price2)}</span>
                         </div>
                     `;
                 }
@@ -1565,10 +1548,15 @@
             document.getElementById("modalBrand").innerText = character ? `${brand} · ${character}` : brand;
             document.getElementById("modalTitle").innerText = name;
 
+            const validity = buildValidityText({
+                "Price 1 Date": date1,
+                "Price 2 Date": date2
+            });
+
             let priceBox = `
                 <div>
                     <b style="font-size:16px; color:#E11D48;">HKD $${escapeHtml(price1)}</b>
-                    <span style="color:#64748B; font-size:13px;">${escapeHtml(date1)}</span>
+                    <span style="color:#64748B; font-size:13px;">${escapeHtml(validity.price1Text)}</span>
                 </div>
             `;
 
@@ -1576,7 +1564,7 @@
                 priceBox += `
                     <div style="margin-top:5px; color:#666;">
                         <b style="font-size:15px;">HKD $${escapeHtml(price2)}</b>
-                        <span style="color:#64748B; font-size:13px;">${escapeHtml(date2)}</span>
+                        <span style="color:#64748B; font-size:13px;">${escapeHtml(validity.price2Text)}</span>
                     </div>
                 `;
             }
@@ -1596,13 +1584,188 @@
             });
         }
 
-        async function generateAllIGPosters() {
+        function parsePriceNumber(text) {
+            const cleaned = normalizeText(text).replace(/[^0-9.]/g, "");
+            const value = parseFloat(cleaned);
+            return isNaN(value) ? null : value;
+        }
+
+        function formatPricePlusTen(text) {
+            const value = parsePriceNumber(text);
+            if (value === null) return normalizeText(text);
+            const increased = value + 10;
+            return Number.isInteger(increased) ? String(increased) : increased.toFixed(2);
+        }
+
+        function buildPosterCell(item, addTenDollars) {
+            const name = getProductNameValue(item);
+            const image = getImageValue(item);
+            const rawPrice1 = normalizeText(item["Price 1 (HKD)"]) || normalizeText(item["Price (HKD)"]);
+            const rawPrice2 = normalizeText(item["Price 2 (HKD)"]);
+            const validity = buildValidityText(item);
+            const price1 = addTenDollars ? formatPricePlusTen(rawPrice1) : rawPrice1;
+            const price2 = addTenDollars ? formatPricePlusTen(rawPrice2) : rawPrice2;
+
+            let priceHtml = "";
+            if (price1) {
+                priceHtml += `
+                    <div class="ig-price-line highlight">
+                        $${escapeHtml(price1)} ${escapeHtml(validity.price1Text)}
+                    </div>
+                `;
+            }
+            if (price2) {
+                priceHtml += `
+                    <div class="ig-price-line sub">
+                        $${escapeHtml(price2)} ${escapeHtml(validity.price2Text)}
+                    </div>
+                `;
+            }
+
+            return `
+                <img
+                    src="${escapeHtml(image)}"
+                    crossorigin="anonymous"
+                    referrerpolicy="no-referrer"
+                    style="
+                        max-width:98% !important;
+                        max-height:94% !important;
+                        width:auto !important;
+                        height:auto !important;
+                        object-fit:contain !important;
+                        display:block;
+                        margin:auto;
+                    "
+                    onerror="this.style.display='none';"
+                >
+
+                <div
+                    class="ig-tag-title"
+                    style="
+                        background-color:#FFFFFF !important;
+                        color:#000000 !important;
+                        border:0 !important;
+                        border-radius:0 !important;
+                        box-shadow:none !important;
+                        opacity:1 !important;
+                    "
+                >
+                    ${escapeHtml(name)}
+                </div>
+
+                <div
+                    class="ig-tag-price-box"
+                    style="
+                        background-color:#FFFFFF !important;
+                        color:#000000 !important;
+                        border:0 !important;
+                        border-radius:0 !important;
+                        box-shadow:none !important;
+                        opacity:1 !important;
+                    "
+                >
+                    ${priceHtml}
+                </div>
+            `;
+        }
+
+        async function renderAndDownloadPosterChunks(items, filePrefix, showBrandTag, addTenDollars) {
+            const brandTag = document.getElementById("igBrandTag");
+
+            if (showBrandTag) {
+                const mainCategory = getCategoryValue(items[0]);
+                const brandColor = isSanrioProduct(items[0])
+                    ? categoryColors.sanrio
+                    : (categoryColors[mainCategory] || categoryColors.default);
+
+                brandTag.innerText = getBrandValue(items[0]);
+                brandTag.style.display = "";
+                brandTag.style.backgroundColor = brandColor;
+                brandTag.style.boxShadow = "none";
+                brandTag.style.opacity = "1";
+            } else {
+                brandTag.innerText = "";
+                brandTag.style.display = "none";
+            }
+
+            for (let index = 0; index < items.length; index += 4) {
+                const chunk = items.slice(index, index + 4);
+                const page = Math.floor(index / 4) + 1;
+
+                for (let cellIndex = 0; cellIndex < 4; cellIndex++) {
+                    const cell = document.getElementById("igCell" + cellIndex);
+                    cell.innerHTML = "";
+                    const item = chunk[cellIndex];
+                    if (item) cell.innerHTML = buildPosterCell(item, addTenDollars);
+                }
+
+                const poster = document.getElementById("igPostTemplate");
+                const images = poster.querySelectorAll("img");
+
+                await Promise.all(Array.from(images).map(waitForImage));
+                await new Promise(resolve => setTimeout(resolve, 250));
+
+                const canvas = await html2canvas(poster, {
+                    useCORS: true,
+                    allowTaint: false,
+                    scale: 1,
+                    backgroundColor: "#FFFFFF",
+                    logging: false,
+
+                    onclone: function(clonedDocument) {
+                        clonedDocument
+                            .querySelectorAll(".ig-tag-title, .ig-tag-price-box")
+                            .forEach(function(element) {
+                                element.style.background = "none";
+                                element.style.backgroundColor = "#FFFFFF";
+                                element.style.color = "#000000";
+                                element.style.border = "0";
+                                element.style.borderRadius = "0";
+                                element.style.boxShadow = "none";
+                                element.style.opacity = "1";
+                            });
+
+                        clonedDocument
+                            .querySelectorAll("#renderCanvasHidden, .ig-poster-1350, .ig-grid-item")
+                            .forEach(function(element) {
+                                element.style.background = "none";
+                                element.style.backgroundColor = "#FFFFFF";
+                                element.style.border = "0";
+                                element.style.opacity = "1";
+                            });
+                    }
+                });
+
+                const link = document.createElement("a");
+                link.download = `${filePrefix}_Part${page}_IG_1080x1350.png`;
+                link.href = canvas.toDataURL("image/png");
+                link.click();
+            }
+        }
+
+        async function generateFeaturedPosters() {
+            const targetProducts = productsData.filter(isFeaturedProduct);
+
+            if (targetProducts.length === 0) {
+                alert("⚠️ 沒有找到 Featured 產品！\n\n請確保 CSV 的 Featured 欄位填寫：Y、YES、1 或 TRUE。");
+                return;
+            }
+
+            if (!confirm(`找到 ${targetProducts.length} 件 Featured 產品。\n\n是否開始按產品次序生成 1080 x 1350 IG 宣傳圖？（每張 4 格）`)) {
+                return;
+            }
+
+            await renderAndDownloadPosterChunks(targetProducts, "Featured", false, false);
+            alert("🎉 Featured 產品的 IG 宣傳圖已全部成功生成並下載！");
+        }
+
+        async function generateCoursellPosters() {
             const targetProducts = productsData.filter(function(product) {
                 return isTrueValue(product["Generate_IG"] || product["Generate IG"]);
             });
 
             if (targetProducts.length === 0) {
-                alert("⚠️ 沒有找到需要生成 IG 圖的產品！\n\n請確保 CSV 的 Generate_IG 欄位填寫：Y、YES、1 或 TRUE。");
+                alert("⚠️ 沒有找到需要生成 Coursell 圖的產品！\n\n請確保 CSV 的 Generate_IG 欄位填寫：Y、YES、1 或 TRUE。");
                 return;
             }
 
@@ -1615,145 +1778,15 @@
 
             const brandNames = Object.keys(brandMap);
 
-            if (!confirm(`找到 ${targetProducts.length} 件指定產品（共 ${brandNames.length} 個品牌）。\n\n是否開始生成 1080 x 1350 IG 宣傳圖？`)) {
+            if (!confirm(`找到 ${targetProducts.length} 件指定產品（共 ${brandNames.length} 個品牌）。\n\n是否開始生成 Coursell 1080 x 1350 IG 宣傳圖？\n\n注意：所有 Period 1 及 Period 2 價格會加 $10。`)) {
                 return;
             }
 
             for (const brandName of brandNames) {
-                const items = brandMap[brandName];
-                const mainCategory = getCategoryValue(items[0]);
-                const brandColor = isSanrioProduct(items[0])
-                    ? categoryColors.sanrio
-                    : (categoryColors[mainCategory] || categoryColors.default);
-
-                const brandTag = document.getElementById("igBrandTag");
-                brandTag.innerText = brandName;
-                brandTag.style.backgroundColor = brandColor;
-                brandTag.style.boxShadow = "none";
-                brandTag.style.opacity = "1";
-
-                for (let index = 0; index < items.length; index += 4) {
-                    const chunk = items.slice(index, index + 4);
-                    const page = Math.floor(index / 4) + 1;
-
-                    for (let cellIndex = 0; cellIndex < 4; cellIndex++) {
-                        const cell = document.getElementById("igCell" + cellIndex);
-                        cell.innerHTML = "";
-                        const item = chunk[cellIndex];
-
-                        if (!item) continue;
-
-                        const name = getProductNameValue(item);
-                        const image = getImageValue(item);
-                        const calculated = calculateProductPrices(item);
-
-                        let priceHtml = `
-                            <div class="ig-price-line highlight">
-                                $${escapeHtml(calculated.row1Price)} ${escapeHtml(calculated.row1DateText)}
-                            </div>
-                        `;
-
-                        if (calculated.row2Price) {
-                            priceHtml += `
-                                <div class="ig-price-line sub">
-                                    $${escapeHtml(calculated.row2Price)} ${escapeHtml(calculated.row2DateText)}
-                                </div>
-                            `;
-                        }
-
-                        cell.innerHTML = `
-                            <img
-                                src="${escapeHtml(image)}"
-                                crossorigin="anonymous"
-                                referrerpolicy="no-referrer"
-                                style="
-                                    max-width:98% !important;
-                                    max-height:94% !important;
-                                    width:auto !important;
-                                    height:auto !important;
-                                    object-fit:contain !important;
-                                    display:block;
-                                    margin:auto;
-                                "
-                                onerror="this.style.display='none';"
-                            >
-
-                            <div
-                                class="ig-tag-title"
-                                style="
-                                    background-color:#FFFFFF !important;
-                                    color:#000000 !important;
-                                    border:0 !important;
-                                    border-radius:0 !important;
-                                    box-shadow:none !important;
-                                    opacity:1 !important;
-                                "
-                            >
-                                ${escapeHtml(name)}
-                            </div>
-
-                            <div
-                                class="ig-tag-price-box"
-                                style="
-                                    background-color:#FFFFFF !important;
-                                    color:#000000 !important;
-                                    border:0 !important;
-                                    border-radius:0 !important;
-                                    box-shadow:none !important;
-                                    opacity:1 !important;
-                                "
-                            >
-                                ${priceHtml}
-                            </div>
-                        `;
-                    }
-
-                    const poster = document.getElementById("igPostTemplate");
-                    const images = poster.querySelectorAll("img");
-
-                    await Promise.all(Array.from(images).map(waitForImage));
-                    await new Promise(resolve => setTimeout(resolve, 250));
-
-                    const canvas = await html2canvas(poster, {
-                        useCORS: true,
-                        allowTaint: false,
-                        scale: 1,
-                        backgroundColor: "#FFFFFF",
-                        logging: false,
-
-                        onclone: function(clonedDocument) {
-                            clonedDocument
-                                .querySelectorAll(".ig-tag-title, .ig-tag-price-box")
-                                .forEach(function(element) {
-                                    element.style.background = "none";
-                                    element.style.backgroundColor = "#FFFFFF";
-                                    element.style.color = "#000000";
-                                    element.style.border = "0";
-                                    element.style.borderRadius = "0";
-                                    element.style.boxShadow = "none";
-                                    element.style.opacity = "1";
-                                });
-
-                            clonedDocument
-                                .querySelectorAll("#renderCanvasHidden, .ig-poster-1350, .ig-grid-item")
-                                .forEach(function(element) {
-                                    element.style.background = "none";
-                                    element.style.backgroundColor = "#FFFFFF";
-                                    element.style.border = "0";
-                                    element.style.opacity = "1";
-                                });
-                        }
-                    });
-
-                    const safeBrandName = brandName.replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, "_");
-                    const link = document.createElement("a");
-                    link.download = `${safeBrandName}_Part${page}_IG_1080x1350.png`;
-                    link.href = canvas.toDataURL("image/png");
-                    link.click();
-                }
+                await renderAndDownloadPosterChunks(brandMap[brandName], brandName.replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, "_"), true, true);
             }
 
-            alert("🎉 指定產品的 IG 宣傳圖已全部成功生成並下載！");
+            alert("🎉 Coursell 的 IG 宣傳圖已全部成功生成並下載！");
         }
     </script>
 </body>
