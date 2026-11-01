@@ -1307,9 +1307,6 @@
                 }
 
                 if (isDefaultState && selectedCategories.includes("all") && selectedCharacter === "all" && selectedBrand === "all") {
-                    if (featuredExists) {
-                        return isFeaturedProduct(product);
-                    }
                     return true;
                 }
 
@@ -1584,6 +1581,34 @@
             });
         }
 
+        function normalizeHeaderKey(text) {
+            return normalizeLower(String(text || "")).replace(/[^a-z0-9]/g, "");
+        }
+
+        function getPriceFieldValue(item, period) {
+            const entries = Object.entries(item);
+            const wanted = period === 1 ? "price1hkd" : "price2hkd";
+
+            for (const [key, value] of entries) {
+                if (normalizeHeaderKey(key) === wanted) {
+                    const text = normalizeText(value);
+                    if (text) return text;
+                }
+            }
+
+            if (period === 1) {
+                for (const [key, value] of entries) {
+                    const header = normalizeHeaderKey(key);
+                    if (header === "pricehkd" || header === "price") {
+                        const text = normalizeText(value);
+                        if (text) return text;
+                    }
+                }
+            }
+
+            return "";
+        }
+
         function parsePriceNumber(text) {
             const cleaned = normalizeText(text).replace(/[^0-9.]/g, "");
             const value = parseFloat(cleaned);
@@ -1598,10 +1623,11 @@
         }
 
         function buildPosterCell(item, addTenDollars) {
+            const brand = getBrandValue(item);
             const name = getProductNameValue(item);
             const image = getImageValue(item);
-            const rawPrice1 = normalizeText(item["Price 1 (HKD)"]) || normalizeText(item["Price (HKD)"]);
-            const rawPrice2 = normalizeText(item["Price 2 (HKD)"]);
+            const rawPrice1 = getPriceFieldValue(item, 1);
+            const rawPrice2 = getPriceFieldValue(item, 2);
             const validity = buildValidityText(item);
             const price1 = addTenDollars ? formatPricePlusTen(rawPrice1) : rawPrice1;
             const price2 = addTenDollars ? formatPricePlusTen(rawPrice2) : rawPrice2;
@@ -1650,6 +1676,13 @@
                         opacity:1 !important;
                     "
                 >
+                    <div style="
+                        font-size:13px !important;
+                        font-weight:800 !important;
+                        color:#1D63FF !important;
+                        text-transform:uppercase !important;
+                        margin-bottom:3px !important;
+                    ">${escapeHtml(brand)}</div>
                     ${escapeHtml(name)}
                 </div>
 
