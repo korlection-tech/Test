@@ -1783,7 +1783,12 @@
             }
 
             for (const brandName of brandNames) {
-                await renderAndDownloadPosterChunks(brandMap[brandName], brandName.replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, "_"), true, true);
+                await renderAndDownloadPosterChunks(
+                    brandMap[brandName],
+                    brandName.replace(/[\\/:*?"<>|]/g, "_").replace(/\s+/g, "_"),
+                    true,
+                    true
+                );
             }
 
             alert("🎉 Coursell 的 IG 宣傳圖已全部成功生成並下載！");
