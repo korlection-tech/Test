@@ -1492,6 +1492,26 @@
             };
         }
 
+        function getPosterDates(item) {
+            const periodStart = parseCsvDate(item["Period Start"] || item["Period start"] || item["period start"]);
+            const periodEnd = parseCsvDate(item["Period End"] || item["Period end"] || item["period end"]);
+            const period2End = parseCsvDate(item["Period 2 End"] || item["Period 2 end"] || item["period 2 end"]);
+
+            const period1Text = periodStart && periodEnd
+                ? `(${formatSaleDate(periodStart)} - ${formatSaleDate(periodEnd)})`
+                : "";
+
+            const period2Start = periodEnd ? nextDay(periodEnd) : null;
+            const period2Text = period2Start && period2End
+                ? `(${formatSaleDate(period2Start)} - ${formatSaleDate(period2End)})`
+                : "";
+
+            return {
+                period1Text: period1Text,
+                period2Text: period2Text
+            };
+        }
+
         function renderGrid(list) {
             const grid = document.getElementById("resultsGrid");
             grid.innerHTML = "";
@@ -1646,7 +1666,7 @@
             const name = getProductNameValue(item);
             const image = getImageValue(item);
             const computed = computePrices(item);
-            const validity = buildValidityText(item);
+            const dates = getPosterDates(item);
 
             const price1 = addTenDollars ? formatPricePlusTen(computed.price1) : computed.price1;
             const price2 = addTenDollars ? formatPricePlusTen(computed.price2) : computed.price2;
@@ -1655,14 +1675,14 @@
             if (price1) {
                 priceHtml += `
                     <div class="ig-price-line highlight">
-                        ${escapeHtml(validity.price1Text)} $${escapeHtml(price1)}
+                        ${escapeHtml(dates.period1Text)} $${escapeHtml(price1)}
                     </div>
                 `;
             }
             if (price2) {
                 priceHtml += `
                     <div class="ig-price-line sub">
-                        ${escapeHtml(validity.price2Text)} $${escapeHtml(price2)}
+                        ${escapeHtml(dates.period2Text)} $${escapeHtml(price2)}
                     </div>
                 `;
             }
